@@ -1,0 +1,9 @@
+<mxfile host="app.diagrams.net"><diagram name="Network" id="net"><mxGraphModel dx="800" dy="400" grid="1" gridSize="10" page="1" pageWidth="800" pageHeight="300"><root><mxCell id="0"/><mxCell id="1" parent="0"/>
+<mxCell id="c" value="ssh / xfreerdp client (host)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;" vertex="1" parent="1"><mxGeometry x="40" y="100" width="160" height="60" as="geometry"/></mxCell>
+<mxCell id="s" value="SLIRP hostfwd&#10;127.0.0.1 only" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;" vertex="1" parent="1"><mxGeometry x="320" y="100" width="160" height="60" as="geometry"/></mxCell>
+<mxCell id="g1" value="guest :22 OpenSSH" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;" vertex="1" parent="1"><mxGeometry x="600" y="60" width="150" height="50" as="geometry"/></mxCell>
+<mxCell id="g2" value="guest :3389 RDP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;" vertex="1" parent="1"><mxGeometry x="600" y="150" width="150" height="50" as="geometry"/></mxCell>
+<mxCell id="e1" value=":2222" style="endArrow=classic;html=1;" edge="1" parent="1" source="c" target="s"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e2" value="22" style="endArrow=classic;html=1;" edge="1" parent="1" source="s" target="g1"><mxGeometry relative="1" as="geometry"/></mxCell>
+<mxCell id="e3" value="3389 (via :3390)" style="endArrow=classic;html=1;" edge="1" parent="1" source="s" target="g2"><mxGeometry relative="1" as="geometry"/></mxCell>
+</root></mxGraphModel></diagram></mxfile>

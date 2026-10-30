@@ -1,0 +1,19 @@
+sequenceDiagram
+    actor U as User
+    participant P as provision.sh
+    participant L as libvirt/QEMU
+    participant W as Windows Setup
+    participant T as setup-tools.ps1
+    U->>P: ./provision.sh
+    P->>P: check ISOs, tools, /dev/kvm
+    P->>P: render autounattend.xml, ssh key
+    P->>P: xorriso config.iso, qemu-img disk
+    P->>L: virt-install (define + start)
+    P->>L: send-key SPACE x20
+    L->>W: boot Windows ISO
+    W->>W: read autounattend.xml, load virtio, partition, install
+    W->>W: reboots, autologon
+    W->>T: FirstLogonCommands
+    T->>T: virtio tools, OpenSSH, RDP, winget, rust
+    T-->>U: C:\setup-tools.done
+    U->>L: ./vm.sh ssh

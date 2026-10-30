@@ -1,0 +1,12 @@
+stateDiagram-v2
+    [*] --> Absent
+    Absent --> Installing: provision.sh
+    Installing --> ToolSetup: first logon
+    ToolSetup --> Ready: setup-tools.done
+    ToolSetup --> Degraded: setup-tools.failed
+    Degraded --> ToolSetup: rerun setup-tools.ps1
+    Ready --> Stopped: vm.sh stop / kill
+    Stopped --> Ready: vm.sh start
+    Ready --> Absent: vm.sh destroy
+    Stopped --> Absent: vm.sh destroy
+    Ready --> Installing: provision.sh --force

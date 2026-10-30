@@ -1,0 +1,17 @@
+flowchart TD
+    A[start] --> B{ISOs readable?}
+    B -- no --> X[exit 1]
+    B -- yes --> C{tools + /dev/kvm?}
+    C -- no --> X
+    C -- yes --> D{VM exists?}
+    D -- yes, --force --> E[destroy, undefine, rm VM_DIR]
+    D -- yes, no force --> X
+    D -- no --> F
+    E --> F[mkdir VM_DIR 0700]
+    F --> G[render autounattend.xml]
+    G --> H[ensure SSH key]
+    H --> I[build config.iso]
+    I --> J[create qcow2]
+    J --> K[virt-install]
+    K --> L[tap SPACE 20s]
+    L --> M[print access info]

@@ -1,0 +1,26 @@
+HOST (Linux, user session, no root)
++---------------------------------------------------------------------------+
+| provision.sh / vm.sh --> config.env                                       |
+|        |                                                                  |
+|        v   virsh / virt-install (qemu:///session)                         |
+|  +-----------------------------------------------------------------+     |
+|  | QEMU/KVM  win-devvm   UEFI + swtpm TPM2 (tpm-crb)  host-passthru |     |
+|  |                                                                 |     |
+|  |  virtio-blk  <----  ~/vms/win-devvm/disk.qcow2  (sparse)        |     |
+|  |  SATA CD 1   <----  $WIN_ISO         (boot order 2)             |     |
+|  |  SATA CD 2   <----  $VIRTIO_ISO      (drivers, guest tools)     |     |
+|  |  SATA CD 3   <----  ~/vms/win-devvm/config.iso                  |     |
+|  |                      autounattend.xml, setup-tools.ps1,         |     |
+|  |                      authorized_keys                            |     |
+|  |  virtio-net  <----> SLIRP user netdev (NAT, outbound only)      |     |
+|  |  virtio-vga  ----->  VNC 127.0.0.1                              |     |
+|  +----------+------------------------+-----------------------------+     |
+|             | 127.0.0.1:2222         | 127.0.0.1:3390                    |
++-------------|------------------------|-----------------------------------+
+              v                        v
+        guest :22 (OpenSSH)      guest :3389 (RDP)
+
+DISK LAYOUT (GPT)           GUEST MARKERS
+ p1 EFI   300MB FAT32        C:\setup-tools.log     transcript
+ p2 MSR    16MB              C:\setup-tools.done    success
+ p3 C:    NTFS (rest)        C:\setup-tools.failed  failed items
