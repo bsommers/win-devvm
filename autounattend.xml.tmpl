@@ -1,18 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <unattend xmlns="urn:schemas-microsoft-com:unattend" xmlns:wcm="http://schemas.microsoft.com/WMIConfig/2002/State">
   <settings pass="windowsPE">
-    <component name="Microsoft-Windows-PnpCustomizationsWinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-PnpCustomizationsWinPE" processorArchitecture="@@ARCH@@" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <DriverPaths>
         <PathAndCredentials wcm:action="add" wcm:keyValue="1"><Path>E:\amd64\w11</Path></PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="2"><Path>F:\amd64\w11</Path></PathAndCredentials>
         <PathAndCredentials wcm:action="add" wcm:keyValue="3"><Path>D:\amd64\w11</Path></PathAndCredentials>
+        <!-- Parallels: virtio-net driver copied onto the install media by lib/parallels.sh -->
+        <PathAndCredentials wcm:action="add" wcm:keyValue="4"><Path>D:\drivers</Path></PathAndCredentials>
+        <PathAndCredentials wcm:action="add" wcm:keyValue="5"><Path>E:\drivers</Path></PathAndCredentials>
+        <PathAndCredentials wcm:action="add" wcm:keyValue="6"><Path>F:\drivers</Path></PathAndCredentials>
       </DriverPaths>
     </component>
-    <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-International-Core-WinPE" processorArchitecture="@@ARCH@@" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <SetupUILanguage><UILanguage>en-US</UILanguage></SetupUILanguage>
       <InputLocale>en-US</InputLocale><SystemLocale>en-US</SystemLocale><UILanguage>en-US</UILanguage><UserLocale>en-US</UserLocale>
     </component>
-    <component name="Microsoft-Windows-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-Setup" processorArchitecture="@@ARCH@@" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <RunSynchronous>
         <RunSynchronousCommand wcm:action="add"><Order>1</Order><Path>reg add HKLM\SYSTEM\Setup\LabConfig /v BypassTPMCheck /t REG_DWORD /d 1 /f</Path></RunSynchronousCommand>
         <RunSynchronousCommand wcm:action="add"><Order>2</Order><Path>reg add HKLM\SYSTEM\Setup\LabConfig /v BypassSecureBootCheck /t REG_DWORD /d 1 /f</Path></RunSynchronousCommand>
@@ -42,26 +46,48 @@
     </component>
   </settings>
   <settings pass="specialize">
-    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="@@ARCH@@" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <ComputerName>@@VMNAME@@</ComputerName>
+    </component>
+    <!-- Parallels payload (toolgate driver + Parallels Tools); each step is a no-op when the files are absent (libvirt). -->
+    <component name="Microsoft-Windows-Deployment" processorArchitecture="@@ARCH@@" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <RunSynchronous>
+        <!-- Stage the guest payload on C: now: Parallels disconnects the install media once its Tools are in,
+             so the CD is gone by first logon. -->
+        <RunSynchronousCommand wcm:action="add"><Order>1</Order><Description>Stage setup-tools.ps1 on C:</Description>
+          <Path>cmd /q /c "mkdir C:\win-devvm &amp; for %I in (D E F G H) do if exist %I:\setup-tools.ps1 copy /y %I:\setup-tools.ps1 C:\win-devvm\ &amp; for %I in (D E F G H) do if exist %I:\authorized_keys copy /y %I:\authorized_keys C:\win-devvm\"</Path></RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add"><Order>2</Order><Description>Disable automatic BitLocker</Description>
+          <Path>reg add HKLM\SYSTEM\CurrentControlSet\Control\BitLocker /v PreventDeviceEncryption /t REG_DWORD /d 1 /f</Path></RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add"><Order>3</Order><Description>Install Parallels toolgate</Description>
+          <Path>cmd /q /c "for %I in (D E F G H) do if exist %I:\prl_tg\DrvInARM64.exe %I:\prl_tg\DrvInARM64.exe -installPrlTg %I:\prl_tg\arm64\prl_tg.inf"</Path>
+          <WillReboot>@@TG_REBOOT@@</WillReboot></RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add"><Order>4</Order><Description>Copy Parallels Tools</Description>
+          <Path>cmd /q /c "for %I in (D E F G H) do if exist %I:\igt_arm64.exe copy /y %I:\igt_arm64.exe %TEMP%\igt.exe"</Path></RunSynchronousCommand>
+        <RunSynchronousCommand wcm:action="add"><Order>5</Order><Description>Install Parallels Tools</Description>
+          <Path>cmd /q /c "if exist %TEMP%\igt.exe %TEMP%\igt.exe"</Path></RunSynchronousCommand>
+      </RunSynchronous>
     </component>
   </settings>
   <settings pass="oobeSystem">
-    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="amd64" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+    <!-- No SkipMachineOOBE/SkipUserOOBE: deprecated, and with them OOBE ignored HideEULAPage (license prompt). -->
+    <component name="Microsoft-Windows-International-Core" processorArchitecture="@@ARCH@@" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
+      <InputLocale>en-US</InputLocale><SystemLocale>en-US</SystemLocale><UILanguage>en-US</UILanguage><UserLocale>en-US</UserLocale>
+    </component>
+    <component name="Microsoft-Windows-Shell-Setup" processorArchitecture="@@ARCH@@" publicKeyToken="31bf3856ad364e35" language="neutral" versionScope="nonSxS">
       <OOBE>
         <HideEULAPage>true</HideEULAPage><HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
         <HideOnlineAccountScreens>true</HideOnlineAccountScreens><HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
-        <ProtectYourPC>3</ProtectYourPC><SkipMachineOOBE>true</SkipMachineOOBE><SkipUserOOBE>true</SkipUserOOBE>
+        <HideLocalAccountScreen>true</HideLocalAccountScreen><ProtectYourPC>3</ProtectYourPC>
       </OOBE>
       <UserAccounts><LocalAccounts><LocalAccount wcm:action="add">
         <Name>@@USER@@</Name><Group>Administrators</Group><DisplayName>@@USER@@</DisplayName>
         <Password><Value>@@PASS@@</Value><PlainText>true</PlainText></Password>
       </LocalAccount></LocalAccounts></UserAccounts>
-      <AutoLogon><Enabled>true</Enabled><LogonCount>3</LogonCount><Username>@@USER@@</Username>
+      <AutoLogon><Enabled>true</Enabled><LogonCount>10</LogonCount><Username>@@USER@@</Username>
         <Password><Value>@@PASS@@</Value><PlainText>true</PlainText></Password></AutoLogon>
       <FirstLogonCommands>
         <SynchronousCommand wcm:action="add"><Order>1</Order><Description>Provision dev tools</Description>
-          <CommandLine>cmd /c for %d in (D E F G H) do if exist %d:\setup-tools.ps1 powershell -NoProfile -ExecutionPolicy Bypass -File %d:\setup-tools.ps1</CommandLine></SynchronousCommand>
+          <CommandLine>cmd /c if exist C:\win-devvm\setup-tools.ps1 (powershell -NoProfile -ExecutionPolicy Bypass -File C:\win-devvm\setup-tools.ps1) else (for %d in (D E F G H) do if exist %d:\setup-tools.ps1 powershell -NoProfile -ExecutionPolicy Bypass -File %d:\setup-tools.ps1)</CommandLine></SynchronousCommand>
       </FirstLogonCommands>
     </component>
   </settings>

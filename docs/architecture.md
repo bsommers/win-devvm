@@ -3,15 +3,17 @@
 ## Components
 | Component | Role |
 |---|---|
-| `config.env` | Sourced by both scripts; every value is `${VAR:-default}` |
-| `provision.sh` | Host orchestrator |
+| `config.env` | Sourced by both scripts; every value is `${VAR:-default}`; picks `HYPERVISOR` (Darwin → `parallels`, else `libvirt`) and per-backend defaults |
+| `provision.sh` | Host orchestrator (backend-neutral: render answer file, stage payload, call `hv_create`) |
+| `lib/libvirt.sh`, `lib/parallels.sh` | Backends implementing `hv_check hv_exists hv_destroy hv_create hv_start hv_stop hv_kill hv_state hv_view hv_ssh_dest hv_info` |
+| `parallels/config.pvs.tmpl` | Parallels VM definition (sanitized from a Parallels-created Windows 11 ARM64 VM) |
 | `autounattend.xml.tmpl` | Rendered with `sed` into `autounattend.xml` |
 | `setup-tools.ps1` | Guest provisioner, delivered on the config ISO |
-| `vm.sh` | Day-2 wrapper around `virsh`, `virt-viewer`, `ssh` |
+| `vm.sh` | Day-2 wrapper around the backend and `ssh`/`scp` |
 
-Host tools: `virt-install`, `virsh`, `xorriso`, `swtpm`, `qemu-img`, `ssh-keygen`, optionally `virt-viewer`.
+Host tools — libvirt: `virt-install`, `virsh`, `xorriso`, `swtpm`, `qemu-img`, `ssh-keygen`, optionally `virt-viewer`. Parallels: Parallels Desktop (`prlctl`, `prl_disk_tool`), `hdiutil`, `ditto`, `uuidgen`, `ssh-keygen`.
 
-## Execution flow (`provision.sh`)
+## Execution flow (`provision.sh`, libvirt)
 1. Load config; verify `$WIN_ISO` and `$VIRTIO_ISO` are readable, required tools exist, `/dev/kvm` is rw.
 2. If the domain exists: with `--force`, `destroy` + `undefine --nvram --tpm` and `rm -rf $VM_DIR`; otherwise exit 1.
 3. `mkdir -p $VM_DIR` (0700). Render the template (`@@EDITION@@`, `@@VMNAME@@` = uppercased name truncated to 15 chars for NetBIOS, `@@USER@@`, `@@PASS@@`; `& | \` are escaped for sed).
@@ -47,5 +49,24 @@ The fixed MAC and PCI slot mean two VMs on one host would collide only if run co
 
 ## State and completion signals
 Guest markers: `C:\setup-tools.done` (success), `C:\setup-tools.failed` (comma-separated failures), `C:\setup-tools.log` (transcript). `vm.sh status` reads `.done` over SSH.
+
+## Parallels backend (macOS, Apple Silicon)
+Parallels Desktop **Standard** rejects `prlctl create/set/start/stop/exec/send-key-event`, so the backend avoids all of them:
+
+1. Mount `$WIN_ISO` (ARM64), copy it to `$VM_DIR/media`, add `autounattend.xml`, `setup-tools.ps1`, `authorized_keys`, and Parallels' unattended payload from `/Applications/Parallels Desktop.app/Contents/Resources/Tools`: `netkvm/arm64` → `\drivers` (virtio-net, loaded in WinPE), `prl_tg` (toolgate driver), `igt_arm64.exe` (Parallels Tools installer).
+2. `hdiutil makehybrid -udf -iso -joliet` → `$VM_DIR/install.iso`, booting `efi/microsoft/boot/efisys_noprompt.bin` (El Torito platform `0xEF`) so there is no "Press any key" prompt to answer. UDF carries the > 4 GB `install.wim`.
+3. `prl_disk_tool create` a sparse disk in `$PRL_VM_HOME/$VM_NAME.pvm`, render `config.pvs` from the template (fresh VM/disk UUIDs, random `001C42xxxxxx` MAC, CPUs, RAM, disk size, ISO path).
+4. `open` the bundle: the Parallels GUI registers it and starts it.
+
+| Operation | Parallels mechanism |
+|---|---|
+| start / view | `open <bundle>.pvm` |
+| stop | `shutdown /s /t 0` over SSH |
+| kill | `SIGKILL` to the VM's `prl_vm_app --uuid {…}` process |
+| state | `prlctl list -i` |
+| destroy | kill, `prlctl unregister`, `rm -rf` the bundle |
+| guest IP | newest lease for the VM's MAC in `/Library/Preferences/Parallels/parallels_dhcp_leases` |
+
+Hardware: 4 vCPU / 8 GB (Standard's limit), SATA disk + SATA CD (inbox `storahci`), virtio NIC on the Shared network (`10.211.55.0/24`, NAT, host-reachable), vTPM, EFI. Host↔guest sharing of Mac folders/profile is disabled in the template.
 
 See [diagrams](diagrams/README.md).
