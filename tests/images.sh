@@ -43,6 +43,7 @@ if command -v qemu-img >/dev/null 2>&1; then
   qemu-img create -q -f qcow2 "$T/base.qcow2" 1G
   image_overlay "$T/base.qcow2" "$T/o.qcow2" 2 2>/dev/null
   check "overlay backs base" grep -q "backing file: $T/base.qcow2" < <(qemu-img info "$T/o.qcow2")
+  check "overlay backing format is qcow2" grep -q "backing file format: qcow2" < <(qemu-img info "$T/o.qcow2")
 else echo "skip - qemu-img missing"; fi
 
 echo "ssh-ed25519 AAAAKEY test@x" > "$T/k.pub"; printf 'echo hi\n' > "$T/extra"
