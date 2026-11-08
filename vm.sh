@@ -9,11 +9,8 @@ source "$HERE/lib/$HYPERVISOR.sh"
 # Per-VM known_hosts: a reprovisioned guest gets a new host key (and, on Parallels, maybe a new IP).
 SSH_OPTS=(-i "$SSH_KEY" -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile="$VM_DIR/known_hosts" -o LogLevel=ERROR)
 dest() { read -r SSH_HOST SSH_PORT_ < <(hv_ssh_dest); }
-guest_ssh() { dest; ssh "${SSH_OPTS[@]}" -p "$SSH_PORT_" "$ADMIN_USER@$SSH_HOST" "$@"; }
-tools_state() {
-  guest_ssh -o BatchMode=yes -o ConnectTimeout=3 \
-    'if (Test-Path C:\setup-tools.done) {"tools: DONE"} elseif (Test-Path C:\setup-tools.failed) {"tools: FAILED " + (Get-Content C:\setup-tools.failed)} else {"tools: installing (see C:\setup-tools.log)"}' 2>/dev/null
-}
+guest_ssh() { dest; ssh "${SSH_OPTS[@]}" -p "$SSH_PORT_" "$SSH_USER@$SSH_HOST" "$@"; }
+tools_state() { guest_ssh -o BatchMode=yes -o ConnectTimeout=3 "$GUEST_READY_CMD" 2>/dev/null; }   # from guest.env
 
 case "${1:-status}" in
   start)   hv_start ;;
@@ -21,11 +18,11 @@ case "${1:-status}" in
   kill)    hv_kill ;;
   view)    hv_view ;;
   ip)      read -r h _ < <(hv_ssh_dest); echo "$h" ;;
-  ssh)     shift; dest; exec ssh "${SSH_OPTS[@]}" -p "$SSH_PORT_" "$ADMIN_USER@$SSH_HOST" "$@" ;;
+  ssh)     shift; dest; exec ssh "${SSH_OPTS[@]}" -p "$SSH_PORT_" "$SSH_USER@$SSH_HOST" "$@" ;;
   push)    [[ $# -eq 3 ]] || { echo "usage: vm.sh push <local> <remote>" >&2; exit 2; }
-           dest; scp -q "${SSH_OPTS[@]}" -P "$SSH_PORT_" -r "$2" "$ADMIN_USER@$SSH_HOST:$3" ;;
+           dest; scp -q "${SSH_OPTS[@]}" -P "$SSH_PORT_" -r "$2" "$SSH_USER@$SSH_HOST:$3" ;;
   pull)    [[ $# -eq 3 ]] || { echo "usage: vm.sh pull <remote> <local>" >&2; exit 2; }
-           dest; scp -q "${SSH_OPTS[@]}" -P "$SSH_PORT_" -r "$ADMIN_USER@$SSH_HOST:$2" "$3" ;;
+           dest; scp -q "${SSH_OPTS[@]}" -P "$SSH_PORT_" -r "$SSH_USER@$SSH_HOST:$2" "$3" ;;
   status)  hv_state; tools_state || echo "ssh: not reachable yet" ;;
   wait)    # block until guest tool setup finishes (exit 0 DONE, 1 FAILED); WAIT_TIMEOUT seconds (default 2h)
            end=$(( $(date +%s) + ${WAIT_TIMEOUT:-7200} ))

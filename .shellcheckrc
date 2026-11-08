@@ -1,0 +1,7 @@
+# Minimal shellcheck config for win-devvm.
+# All scripts are bash (macOS ships bash 3.2, so avoid bash 4+ features).
+shell=bash
+# Report warnings and errors only; style nits (e.g. SC2018/SC2019 tr-ranges) are not gating.
+severity=warning
+# Sourced files are chosen at runtime ($HERE/lib/...), so they cannot be followed statically.
+disable=SC1091
