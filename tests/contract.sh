@@ -13,8 +13,8 @@ count=0
 for lib in "$ROOT"/lib/*.sh; do
   [ -f "$lib" ] || continue
   name="$(basename "$lib" .sh)"
-  # common.sh holds shared helpers, not a hypervisor backend
-  [ "$name" = "common" ] && continue
+  # common/images/cloudinit hold shared helpers, not a hypervisor backend
+  case "$name" in common|images|cloudinit) continue ;; esac
   count=$((count + 1))
 
   # Stub config: only what backends reference at top level or may read while sourcing.
