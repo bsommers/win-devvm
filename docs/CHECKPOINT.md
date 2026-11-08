@@ -1,6 +1,6 @@
 # Checkpoint — multi-OS guests (as of 2026-11-08)
 
-Branch: `feat/multi-os-m0-m1` (off master `d8a7f48`). Not pushed. Plan: `docs/PLAN-multi-os.md`.
+Branch: `feat/multi-os-m0-m1` (PR #2). Plan: `docs/PLAN-multi-os.md`.
 
 ## Done
 - **M0** tests/lint/CI: `tests/{contract,syntax,run}.sh`, `.shellcheckrc`, `.github/workflows/ci.yml` (ubuntu-latest, macos-14).

@@ -1,8 +1,8 @@
 name: ci
 
 on:
-  push:
-  pull_request:
+  # Manual only: conserve GitHub CI minutes. Run `bash tests/run.sh` locally (see scripts/install-hooks.sh).
+  workflow_dispatch:
 
 permissions:
   contents: read
