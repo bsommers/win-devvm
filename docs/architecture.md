@@ -7,8 +7,10 @@
 | `provision.sh` | Host orchestrator (backend-neutral: render answer file, stage payload, call `hv_create`) |
 | `lib/libvirt.sh`, `lib/parallels.sh` | Backends implementing `hv_check hv_exists hv_destroy hv_create hv_start hv_stop hv_kill hv_state hv_view hv_ssh_dest hv_info` |
 | `parallels/config.pvs.tmpl` | Parallels VM definition (sanitized from a Parallels-created Windows 11 ARM64 VM) |
-| `autounattend.xml.tmpl` | Rendered with `sed` into `autounattend.xml` |
-| `setup-tools.ps1` | Guest provisioner, delivered on the config ISO |
+| `lib/common.sh` | Shared helpers: `esc()`, `vm_slot()`/`vm_mac()` (per-VM SSH/RDP ports and MAC; the default `win-devvm` keeps 2222/3390/`52:54:00:17:8c:66`) |
+| `guests/<GUEST>/guest.env` | Guest layer, selected by `GUEST` (default `windows11`). Declares `OS_VARIANT`, `NEED_TPM`, `CONFIG_LABEL`, `BOOT_KEYS`, `SSH_USER`, `IMAGE_KIND`, `GUEST_STOP_CMD`, `GUEST_READY_CMD`, banner text and `guest_stage()` (renders the unattended payload). Backends and `vm.sh` read these instead of hardcoding Windows. |
+| `guests/windows11/autounattend.xml.tmpl` | Rendered with `sed` into `autounattend.xml` by `guest_stage` |
+| `guests/windows11/setup-tools.ps1` | Guest provisioner, delivered on the config ISO |
 | `vm.sh` | Day-2 wrapper around the backend and `ssh`/`scp` |
 
 Host tools — libvirt: `virt-install`, `virsh`, `xorriso`, `swtpm`, `qemu-img`, `ssh-keygen`, optionally `virt-viewer`. Parallels: Parallels Desktop (`prlctl`, `prl_disk_tool`), `hdiutil`, `ditto`, `uuidgen`, `ssh-keygen`.

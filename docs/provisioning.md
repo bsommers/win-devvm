@@ -1,6 +1,6 @@
 # Provisioning deep-dive
 
-## Answer file (`autounattend.xml.tmpl`)
+## Answer file (`guests/windows11/autounattend.xml.tmpl`)
 | Pass | What it does |
 |---|---|
 | windowsPE | Loads virtio drivers from `E:\amd64\w11`, `F:\...`, `D:\...` (libvirt) and `D:`-`F:\drivers` (Parallels virtio-net); en-US locale; sets `LabConfig` BypassTPM/SecureBoot/RAM checks; wipes disk 0 and creates EFI 300 MB (FAT32), MSR 16 MB, Windows NTFS `C:` (rest); installs image `@@EDITION@@` to partition 3; accepts EULA, no product key |
@@ -11,7 +11,7 @@ All components use `processorArchitecture="@@ARCH@@"` (`amd64` / `arm64`).
 
 `DiskConfiguration.WillShowUI` is `OnError`, so a disk problem surfaces in the UI instead of failing silently.
 
-## `setup-tools.ps1`
+## `guests/windows11/setup-tools.ps1`
 Runs as `$ADMIN_USER`, transcript to `C:\setup-tools.log`, `ErrorActionPreference=Continue` so one failing step doesn't abort the rest. It copies itself to `C:\win-devvm\` and registers a logon task (`win-devvm-setup`) so a reboot mid-setup resumes it; the task is removed on success. Native architecture comes from the registry (not `$env:PROCESSOR_ARCHITECTURE`, which says AMD64 in emulated processes).
 
 | Step | Detail |

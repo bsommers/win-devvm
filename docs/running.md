@@ -22,17 +22,18 @@ Override per invocation, e.g. `VM_RAM_MB=8192 ./provision.sh`. `vm.sh` must see 
 | `VM_NAME` | `win-devvm` | VM name; also computer name (upper-cased, 15 chars) |
 | `VM_RAM_MB` | `16384` (Parallels: `8192`) | Memory |
 | `VM_VCPUS` | `8` (Parallels: `4`) | vCPUs |
-| `WIN_ARCH` | `amd64` (Parallels: `arm64`) | Answer-file `processorArchitecture` |
+| `GUEST` | `windows11` | Guest definition `guests/<GUEST>/guest.env` |
+| `ARCH` (legacy `WIN_ARCH`) | `amd64` (Parallels: `arm64`) | Answer-file `processorArchitecture` |
 | `PRL_VM_HOME` | `~/Parallels` | Parallels: where `$VM_NAME.pvm` is created |
 | `PRL_APP` | `/Applications/Parallels Desktop.app` | Parallels: source of the driver/tools payload |
 | `VM_DISK_GB` | `120` | qcow2 virtual size |
 | `LIBVIRT_URI` | `qemu:///session` | Connection |
 | `VM_DIR` | `~/vms/$VM_NAME` | libvirt: disk + config ISO; Parallels: remastered `install.iso`; both: `known_hosts` |
-| `WIN_ISO` | libvirt: `~/Windows11_Client_x64_en-us_26300_9457.iso`; Parallels: newest `*A64FRE*.iso` in `~/Downloads` or `~/Library/Parallels/Downloads` | Installer |
+| `IMAGE_ISO` (legacy `WIN_ISO`) | libvirt: `~/Windows11_Client_x64_en-us_26300_9457.iso`; Parallels: newest `*A64FRE*.iso` in `~/Downloads` or `~/Library/Parallels/Downloads` | Installer |
 | `VIRTIO_ISO` | `~/.cache/cvm/lab-images/virtio-win.iso` | Drivers and guest tools |
-| `WIN_EDITION` | `Windows 11 Pro` | Must match an `/IMAGE/NAME` in install.wim |
+| `IMAGE_EDITION` (legacy `WIN_EDITION`) | `Windows 11 Pro` | Must match an `/IMAGE/NAME` in install.wim |
 | `ADMIN_USER` / `ADMIN_PASS` | `dev` / `devvm-Passw0rd!` | Local admin; change the password |
-| `SSH_PORT` / `RDP_PORT` | `2222` / `3390` | libvirt: host loopback forwards (Parallels uses the guest IP, ports 22/3389) |
+| `SSH_PORT` / `RDP_PORT` | `2222` / `3390` for `win-devvm`; other `VM_NAME`s get a stable offset | libvirt: host loopback forwards (Parallels uses the guest IP, ports 22/3389) |
 | `SSH_KEY` | `~/.ssh/id_windevvm` | Generated (ed25519, no passphrase) if missing |
 
 Passwords containing `& | \` are escaped; characters special to XML (`< >`) are **not** escaped in the template and will break the answer file.

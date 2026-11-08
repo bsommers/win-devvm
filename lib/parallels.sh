@@ -1,5 +1,6 @@
 # shellcheck shell=bash
 # Parallels Desktop backend (macOS on Apple Silicon -> Windows 11 ARM64). Sourced by provision.sh / vm.sh.
+# Requires config.env first (sources lib/common.sh for esc(), vm_slot, vm_mac) and the guest.env vars it exports.
 # Implements: hv_check hv_exists hv_destroy hv_create hv_start hv_stop hv_kill hv_state hv_view hv_ssh_dest hv_info
 #
 # Works with Parallels Desktop *Standard*, whose prlctl refuses create/set/start/stop/exec/send-key-event.
@@ -14,8 +15,8 @@ PRL_TOOLS="$PRL_APP/Contents/Resources/Tools"
 
 hv_check() {
   [[ "$(uname -s)" == Darwin && "$(uname -m)" == arm64 ]] || { echo "parallels backend needs macOS on Apple Silicon" >&2; exit 1; }
-  [[ "$WIN_ARCH" == arm64 ]] || { echo "parallels backend supports WIN_ARCH=arm64 only" >&2; exit 1; }
-  [[ -n "$WIN_ISO" && -r "$WIN_ISO" ]] || { echo "missing Windows 11 ARM64 ISO (set WIN_ISO): ${WIN_ISO:-<none found>}" >&2; exit 1; }
+  [[ "$ARCH" == arm64 ]] || { echo "parallels backend supports ARCH=arm64 only (legacy WIN_ARCH)" >&2; exit 1; }
+  [[ -n "$IMAGE_ISO" && -r "$IMAGE_ISO" ]] || { echo "missing $IMAGE_DESC_ARM64 (set IMAGE_ISO, legacy WIN_ISO): ${IMAGE_ISO:-<none found>}" >&2; exit 1; }
   for c in prlctl prl_disk_tool hdiutil ditto uuidgen; do command -v "$c" >/dev/null || { echo "missing tool: $c" >&2; exit 1; }; done
   for f in igt_arm64.exe prl_tg/DrvInARM64.exe prl_tg/arm64 netkvm/arm64; do
     [[ -e "$PRL_TOOLS/$f" ]] || { echo "missing Parallels payload: $PRL_TOOLS/$f" >&2; exit 1; }; done
@@ -41,15 +42,15 @@ hv_destroy() {
 
 rand_mac() { printf '001C42%02X%02X%02X' $((RANDOM % 256)) $((RANDOM % 256)) $((RANDOM % 256)); }
 
-# $1 = staged config dir (autounattend.xml, setup-tools.ps1, authorized_keys)
+# $1 = staged config dir (guest_stage output + authorized_keys)
 hv_create() {
   local media="$VM_DIR/media" iso="$VM_DIR/install.iso" mnt
   [[ ! -e "$PVM" ]] || { echo "bundle already exists: $PVM (use --force)" >&2; exit 1; }
 
-  echo "remastering $(basename "$WIN_ISO") -> $iso"
+  echo "remastering $(basename "$IMAGE_ISO") -> $iso"
   rm -rf "$media"
-  mnt="$(hdiutil attach -readonly -nobrowse "$WIN_ISO" 2>/dev/null | awk -F'\t' '/\/Volumes\// {print $NF}')"
-  [[ -d "$mnt" ]] || { echo "could not mount $WIN_ISO" >&2; exit 1; }
+  mnt="$(hdiutil attach -readonly -nobrowse "$IMAGE_ISO" 2>/dev/null | awk -F'\t' '/\/Volumes\// {print $NF}')"
+  [[ -d "$mnt" ]] || { echo "could not mount $IMAGE_ISO" >&2; exit 1; }
   ditto "$mnt" "$media"; hdiutil detach "$mnt" -quiet || true
   chmod -R u+w "$media"
   cp "$1"/* "$media/"
@@ -84,7 +85,7 @@ hv_start() {
   for _ in $(seq 1 60); do [[ "$(hv_state)" == running ]] && return 0; sleep 1; done
   echo "warning: $VM_NAME not running after 60s; check the Parallels window (./vm.sh view)" >&2
 }
-hv_stop()  { "$HERE/vm.sh" ssh 'shutdown /s /t 0'; }
+hv_stop()  { "$HERE/vm.sh" ssh "$GUEST_STOP_CMD"; }   # GUEST_STOP_CMD from guest.env
 hv_view()  { open "$PVM"; }
 
 # Guest IP from Parallels' shared-network DHCP leases (works before Parallels Tools report it).

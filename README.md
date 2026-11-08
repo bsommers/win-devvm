@@ -35,8 +35,10 @@ State lives in `~/vms/win-devvm`; the Parallels bundle in `~/Parallels/win-devvm
 | `vm.sh` | Day-2 control |
 | `lib/libvirt.sh`, `lib/parallels.sh` | Backends (`hv_*` functions) |
 | `parallels/config.pvs.tmpl` | Parallels VM config template (Windows 11 ARM64, SATA disk/CD, virtio NIC, vTPM) |
-| `autounattend.xml.tmpl` | Answer file template (`@@EDITION@@ @@VMNAME@@ @@USER@@ @@PASS@@ @@ARCH@@ @@TG_REBOOT@@`) |
-| `setup-tools.ps1` | Guest provisioning (first logon, then each logon until done) |
+| `lib/common.sh` | Shared helpers (`esc`, per-VM port/MAC derivation) |
+| `guests/<GUEST>/guest.env` | Guest-OS definition (`GUEST`, default `windows11`): osinfo, TPM, config-ISO label, boot keys, SSH user, stop/ready commands, `guest_stage` |
+| `guests/windows11/autounattend.xml.tmpl` | Answer file template (`@@EDITION@@ @@VMNAME@@ @@USER@@ @@PASS@@ @@ARCH@@ @@TG_REBOOT@@`) |
+| `guests/windows11/setup-tools.ps1` | Guest provisioning (first logon, then each logon until done) |
 
 ## CLI reference
 | Command | Effect |
