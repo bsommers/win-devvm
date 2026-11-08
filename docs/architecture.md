@@ -9,6 +9,7 @@
 | `parallels/config.pvs.tmpl` | Parallels VM definition (sanitized from a Parallels-created Windows 11 ARM64 VM) |
 | `lib/common.sh` | Shared helpers: `esc()`, `vm_slot()`/`vm_mac()` (per-VM SSH/RDP ports and MAC; the default `win-devvm` keeps 2222/3390/`52:54:00:17:8c:66`) |
 | `guests/<GUEST>/guest.env` | Guest layer, selected by `GUEST` (default `windows11`). Declares `OS_VARIANT`, `NEED_TPM`, `CONFIG_LABEL`, `BOOT_KEYS`, `SSH_USER`, `IMAGE_KIND`, `GUEST_STOP_CMD`, `GUEST_READY_CMD`, banner text and `guest_stage()` (renders the unattended payload). Backends and `vm.sh` read these instead of hardcoding Windows. |
+| `guests/{ubuntu,fedora}/guest.env` | `IMAGE_KIND=cloudimg` guests (libvirt, x86_64): `IMAGE_URL/IMAGE_FILE/IMAGE_SUMS`; `guest_stage` writes cloud-init user-data/meta-data via `lib/cloudinit.sh`. `hv_create` fetches + verifies the image (`lib/images.sh`), makes a qcow2 overlay at `$VM_DIR/disk.qcow2`, attaches `seed.iso` (label `cidata`) and boots with `--import`: no TPM, no RDP forward. Ready marker: `/var/lib/devvm-ready`. `HV_DRYRUN=1` prints the virt-install argv instead of running it. |
 | `guests/windows11/autounattend.xml.tmpl` | Rendered with `sed` into `autounattend.xml` by `guest_stage` |
 | `guests/windows11/setup-tools.ps1` | Guest provisioner, delivered on the config ISO |
 | `vm.sh` | Day-2 wrapper around the backend and `ssh`/`scp` |

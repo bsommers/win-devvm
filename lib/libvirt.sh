@@ -2,10 +2,16 @@
 # libvirt/KVM backend (Linux, rootless qemu:///session). Sourced by provision.sh / vm.sh.
 # Implements: hv_check hv_exists hv_destroy hv_create hv_start hv_stop hv_kill hv_state hv_view hv_ssh_dest hv_info
 V() { virsh -c "$LIBVIRT_URI" "$@"; }
+hv_run() { if [[ -n "${HV_DRYRUN:-}" ]]; then printf '%s\n' "$@"; else "$@"; fi; }   # HV_DRYRUN=1: print argv, don't run
 
 hv_check() {
-  for f in "$IMAGE_ISO" "$VIRTIO_ISO"; do [[ -r "$f" ]] || { echo "missing: $f" >&2; exit 1; }; done
-  for c in virt-install virsh xorriso swtpm qemu-img; do command -v "$c" >/dev/null || { echo "missing tool: $c" >&2; exit 1; }; done
+  local need="virt-install virsh xorriso swtpm qemu-img" f
+  if [[ "$IMAGE_KIND" == cloudimg ]]; then
+    need="virt-install virsh xorriso qemu-img curl"        # no ISO/virtio media, no TPM
+  else
+    for f in "$IMAGE_ISO" "$VIRTIO_ISO"; do [[ -r "$f" ]] || { echo "missing: $f" >&2; exit 1; }; done
+  fi
+  for f in $need; do command -v "$f" >/dev/null || { echo "missing tool: $f" >&2; exit 1; }; done
   [[ -r /dev/kvm && -w /dev/kvm ]] || { echo "/dev/kvm not accessible" >&2; exit 1; }
 }
 
@@ -18,28 +24,43 @@ hv_destroy() {
 
 # $1 = staged config dir (guest_stage output + authorized_keys)
 hv_create() {
-  xorriso -as mkisofs -quiet -J -r -V "$CONFIG_LABEL" -o "$VM_DIR/config.iso" "$1"
-  qemu-img create -f qcow2 -o preallocation=off "$VM_DIR/disk.qcow2" "${VM_DISK_GB}G" >/dev/null
-  local vi tpm=()
+  local vi tpm=() disks=() fwd="hostfwd=tcp:127.0.0.1:$SSH_PORT-:22" mode=()
+  if [[ "$IMAGE_KIND" == cloudimg ]]; then
+    local base
+    # shellcheck source=/dev/null
+    source "$HERE/lib/images.sh"; source "$HERE/lib/cloudinit.sh"
+    base="$(image_fetch "$IMAGE_URL" "$IMAGE_FILE" "$IMAGE_SUMS")" || { echo "image fetch failed" >&2; exit 1; }
+    image_overlay "$base" "$VM_DIR/disk.qcow2" "$VM_DISK_GB"
+    ci_make_seed "$1" "$VM_DIR/seed.iso"
+    mode=(--import)
+    disks=(--disk "path=$VM_DIR/disk.qcow2,bus=virtio,cache=none,discard=unmap,boot.order=1"
+           --disk "path=$VM_DIR/seed.iso,device=cdrom,bus=sata")
+  else
+    xorriso -as mkisofs -quiet -J -r -V "$CONFIG_LABEL" -o "$VM_DIR/config.iso" "$1"
+    qemu-img create -f qcow2 -o preallocation=off "$VM_DIR/disk.qcow2" "${VM_DISK_GB}G" >/dev/null
+    fwd="$fwd,hostfwd=tcp:127.0.0.1:$RDP_PORT-:3389"
+    disks=(--disk "path=$VM_DIR/disk.qcow2,bus=virtio,cache=none,discard=unmap,boot.order=1"
+           --disk "path=$IMAGE_ISO,device=cdrom,bus=sata,boot.order=2"
+           --disk "path=$VIRTIO_ISO,device=cdrom,bus=sata"
+           --disk "path=$VM_DIR/config.iso,device=cdrom,bus=sata")
+  fi
   vi=("$(command -v virt-install)")
   [[ -x /usr/bin/python3 ]] && vi=(/usr/bin/python3 "${vi[0]}")   # system python (gi bindings), as before
   (( NEED_TPM )) && tpm=(--tpm 'backend.type=emulator,backend.version=2.0,model=tpm-crb')
-  "${vi[@]}" --connect "$LIBVIRT_URI" \
+  hv_run "${vi[@]}" --connect "$LIBVIRT_URI" \
     --name "$VM_NAME" --osinfo "$OS_VARIANT" \
     --memory "$VM_RAM_MB" --vcpus "$VM_VCPUS" --cpu host-passthrough \
     --boot uefi \
     ${tpm[@]+"${tpm[@]}"} \
-    --disk path="$VM_DIR/disk.qcow2",bus=virtio,cache=none,discard=unmap,boot.order=1 \
-    --disk path="$IMAGE_ISO",device=cdrom,bus=sata,boot.order=2 \
-    --disk path="$VIRTIO_ISO",device=cdrom,bus=sata \
-    --disk path="$VM_DIR/config.iso",device=cdrom,bus=sata \
+    ${mode[@]+"${mode[@]}"} \
+    "${disks[@]}" \
     --network none \
-    --qemu-commandline="-netdev user,id=n0,hostfwd=tcp:127.0.0.1:$SSH_PORT-:22,hostfwd=tcp:127.0.0.1:$RDP_PORT-:3389 -device virtio-net-pci,netdev=n0,mac=$VM_MAC,bus=pcie.0,addr=0x1e" \
+    --qemu-commandline="-netdev user,id=n0,$fwd -device virtio-net-pci,netdev=n0,mac=$VM_MAC,bus=pcie.0,addr=0x1e" \
     --graphics vnc,listen=127.0.0.1 --video virtio \
     --channel unix,target.type=virtio,target.name=org.qemu.guest_agent.0 \
     --noautoconsole --wait 0
   # Some installers (Windows: "Press any key to boot from CD") time out; tap BOOT_KEYS for BOOT_KEYS_SECS so unattended boot works.
-  if [[ -n "$BOOT_KEYS" ]]; then
+  if [[ -n "$BOOT_KEYS" && -z "${HV_DRYRUN:-}" ]]; then
     # shellcheck disable=SC2086
     for _ in $(seq 1 "$BOOT_KEYS_SECS"); do V send-key "$VM_NAME" $BOOT_KEYS >/dev/null 2>&1 || true; sleep 1; done
   fi
@@ -56,6 +77,6 @@ hv_info() {
   cat <<MSG
   screen   : ./vm.sh view          (virt-viewer) or VNC: $(V domdisplay "$VM_NAME" 2>/dev/null || echo see 'virsh domdisplay')
   ssh      : ./vm.sh ssh           (127.0.0.1:$SSH_PORT -> guest:22)
-  rdp      : xfreerdp /v:127.0.0.1:$RDP_PORT /u:$SSH_USER
 MSG
+  [[ "$IMAGE_KIND" == cloudimg ]] || echo "  rdp      : xfreerdp /v:127.0.0.1:$RDP_PORT /u:$SSH_USER"
 }

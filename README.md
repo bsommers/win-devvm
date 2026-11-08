@@ -7,6 +7,12 @@ Unattended Windows 11 dev VM, two backends selected automatically by host OS:
 | Linux | `libvirt` — rootless KVM, UEFI + swtpm TPM 2.0, virtio disk/net, SLIRP user networking | Windows 11 x64 |
 | macOS (Apple Silicon) | `parallels` — Parallels Desktop (works with **Standard** edition), shared network | Windows 11 **ARM64** |
 
+Linux x86_64 cloud-image guests (libvirt backend only: `GUEST=ubuntu` 24.04, `GUEST=fedora` 45) boot the vendor image with a cloud-init `cidata` seed (keys-only SSH user `$ADMIN_USER`, git + build tools). Images are cached and sha256-verified in `~/.cache/win-devvm/images`. No ISO, virtio-win, TPM or RDP needed:
+
+```
+VM_NAME=u1 GUEST=ubuntu ./provision.sh && VM_NAME=u1 GUEST=ubuntu ./vm.sh wait
+```
+
 One command builds the install media, creates the disk, installs Windows, and provisions a Rust/MSVC toolchain (native arch + the other Windows target for cross builds) reachable over SSH/RDP.
 
 ## Features

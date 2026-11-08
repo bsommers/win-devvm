@@ -4,7 +4,7 @@
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 rc=0
-for t in contract.sh syntax.sh images.sh; do
+for t in contract.sh guests.sh syntax.sh images.sh; do
   echo "== $t"
   bash "$ROOT/tests/$t" || rc=1
   echo

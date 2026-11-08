@@ -78,7 +78,7 @@ image_overlay() {
   local base="$1" out="$2" size="$3" fmt abs
   [ -f "$base" ] || { _img_log "base image missing: $base"; return 1; }
   abs="$(cd "$(dirname "$base")" && pwd)/$(basename "$base")"
-  fmt="$(qemu-img info --output=json "$abs" | sed -n 's/.*"format": *"\([^"]*\)".*/\1/p' | head -n1)"
+  fmt="$(qemu-img info "$abs" | awk '/^file format:/{print $3; exit}')"
   [ -n "$fmt" ] || { _img_log "cannot detect format of $abs"; return 1; }
   qemu-img create -q -f qcow2 -F "$fmt" -b "$abs" "$out" "${size}G" >&2
 }
