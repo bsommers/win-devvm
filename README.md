@@ -37,6 +37,8 @@ State lives in `~/vms/win-devvm`; the Parallels bundle in `~/Parallels/win-devvm
 | `parallels/config.pvs.tmpl` | Parallels VM config template (Windows 11 ARM64, SATA disk/CD, virtio NIC, vTPM) |
 | `autounattend.xml.tmpl` | Answer file template (`@@EDITION@@ @@VMNAME@@ @@USER@@ @@PASS@@ @@ARCH@@ @@TG_REBOOT@@`) |
 | `setup-tools.ps1` | Guest provisioning (first logon, then each logon until done) |
+| `bsd-vm.sh` | FreeBSD / OpenBSD VMs on QEMU (provision and day-2 control) |
+| `lib/openbsd-install.py`, `lib/qemu-sock.py` | OpenBSD installer responder; QEMU monitor / serial socket client |
 
 ## CLI reference
 | Command | Effect |
@@ -51,6 +53,38 @@ State lives in `~/vms/win-devvm`; the Parallels bundle in `~/Parallels/win-devvm
 | `./vm.sh ssh [cmd...]` | SSH as `$ADMIN_USER` with the generated key |
 | `./vm.sh push <local> <remote>` / `pull <remote> <local>` | `scp -r` to/from the guest (remote paths relative to the user's home) |
 | `./vm.sh destroy` | Prompted deletion of the VM and `$VM_DIR` |
+
+## FreeBSD and OpenBSD guests
+
+`bsd-vm.sh` builds BSD dev VMs on plain QEMU (HVF on macOS, KVM on Linux; no libvirt or
+Parallels). The guest CPU matches the host: arm64 on Apple Silicon, amd64 on x86_64.
+
+```
+./bsd-vm.sh freebsd provision     # ~3 min after the 0.6 GB image download
+./bsd-vm.sh openbsd provision     # ~4 min after the 0.7 GB installer download
+./bsd-vm.sh freebsd ssh           # user dev, key-only, passwordless sudo (doas on OpenBSD)
+./bsd-vm.sh openbsd ssh 'uname -a'
+```
+
+| Guest | How it is installed | SSH |
+|---|---|---|
+| FreeBSD 15.1 | Official `BASIC-CLOUDINIT` image plus a cloud-init config drive (user, key, `sudo`, `bash`, `git`); root filesystem grows to `VM_DISK_GB` | `127.0.0.1:2230` |
+| OpenBSD 8.0 | Official `installNN.img`; `lib/openbsd-install.py` answers the installer over the serial console, then adds the key and a `doas` rule | `127.0.0.1:2231` |
+
+Commands: `provision [--force]`, `start`, `stop`, `kill`, `status`, `ip`, `ssh [cmd...]`,
+`push <local> <remote>`, `pull <remote> <local>`, `console` (serial), `destroy`.
+Settings (environment): `FREEBSD_VERSION`, `OPENBSD_VERSION`, `VM_RAM_MB` (4096), `VM_VCPUS` (4),
+`VM_DISK_GB` (40), `ADMIN_USER` (dev), `SSH_KEY`, `SSH_PORT`, `VM_NAME`, `VM_DIR`, `IMAGE_CACHE`.
+
+Downloads are cached in `~/.cache/win-devvm` and checked against the project's published
+SHA-256 on every provision. State lives in `~/vms/<guest>-devvm`. The OpenBSD installer
+password is random, kept in `~/vms/openbsd-devvm/password` (mode 600), and not needed for SSH.
+
+Tested on macOS arm64 (QEMU 11, HVF). The amd64 path (Linux/KVM, or an Intel Mac) is written
+but untested; OpenBSD there also depends on the boot prompt being reachable over serial.
+When a new release comes out, set the version variable; if the OpenBSD installer gains a
+question without a default, add a rule to `RULES` in `lib/openbsd-install.py`
+(`~/vms/openbsd-devvm/install.log` shows where it stopped).
 
 ## Documentation
 See [docs/](docs/README.md): [purpose](docs/purpose.md), [architecture](docs/architecture.md), [running](docs/running.md), [how-to](docs/how-to.md), [provisioning deep-dive](docs/provisioning.md), [diagrams](docs/diagrams/README.md).
