@@ -22,7 +22,7 @@ Override per invocation, e.g. `VM_RAM_MB=8192 ./provision.sh`. `vm.sh` must see 
 | `VM_NAME` | `win-devvm` | VM name; also computer name (upper-cased, 15 chars) |
 | `VM_RAM_MB` | `16384` (Parallels: `8192`) | Memory |
 | `VM_VCPUS` | `8` (Parallels: `4`) | vCPUs |
-| `GUEST` | `windows11` | Guest definition `guests/<GUEST>/guest.env` |
+| `GUEST` | `windows11` | Guest definition `guests/<GUEST>/guest.env`: `windows11`, `ubuntu`, `fedora`, `freebsd` (the latter three libvirt only) |
 | `ARCH` (legacy `WIN_ARCH`) | `amd64` (Parallels: `arm64`) | Answer-file `processorArchitecture` |
 | `PRL_VM_HOME` | `~/Parallels` | Parallels: where `$VM_NAME.pvm` is created |
 | `PRL_APP` | `/Applications/Parallels Desktop.app` | Parallels: source of the driver/tools payload |

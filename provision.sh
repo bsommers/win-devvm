@@ -21,8 +21,8 @@ mkdir -p "$VM_DIR"; chmod 700 "$VM_DIR"
 
 # --- config payload: guest answer file/provisioner + host SSH pubkey ---------
 STAGE="$(mktemp -d)"; trap 'rm -rf "$STAGE"' EXIT
-guest_stage "$STAGE"   # guests/$GUEST/guest.env: render answer file + guest provisioner
 [[ -f "$SSH_KEY" ]] || ssh-keygen -q -t ed25519 -N "" -C "$VM_NAME" -f "$SSH_KEY"
+guest_stage "$STAGE"   # guests/$GUEST/guest.env: render answer file + guest provisioner
 cp "$SSH_KEY.pub" "$STAGE/authorized_keys"
 
 # --- define + start (backend) -------------------------------------------------
