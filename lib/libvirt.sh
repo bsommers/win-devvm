@@ -50,7 +50,8 @@ hv_create() {
   hv_run "${vi[@]}" --connect "$LIBVIRT_URI" \
     --name "$VM_NAME" --osinfo "$OS_VARIANT" \
     --memory "$VM_RAM_MB" --vcpus "$VM_VCPUS" --cpu host-passthrough \
-    --boot uefi \
+    --boot "${UEFI_BOOT:-uefi}" \
+    ${MACHINE:+--machine "$MACHINE"} \
     ${tpm[@]+"${tpm[@]}"} \
     ${mode[@]+"${mode[@]}"} \
     "${disks[@]}" \

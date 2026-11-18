@@ -2,6 +2,8 @@
 # lib/cloudinit.sh - NoCloud seed generation. Sourced; no top-level side effects.
 
 # ci_write_user_data <dir> <user> <pubkey-file> [<extra-runcmd-file>]
+# Env knobs (defaults suit Linux): CI_USER_SHELL=/bin/bash  CI_USER_SUDO="ALL=(ALL) NOPASSWD:ALL" ("" omits)
+#   CI_READY_FILE=/var/lib/devvm-ready  CI_READY_ALWAYS=1 (0: caller's runcmd writes the marker itself)
 ci_write_user_data() {
   local dir="$1" user="$2" keyf="$3" extra="${4:-}" key line
   [ -f "$keyf" ] || { echo "pubkey file missing: $keyf" >&2; return 1; }
@@ -14,8 +16,8 @@ ci_write_user_data() {
     echo "#cloud-config"
     echo "users:"
     echo "  - name: $user"
-    echo "    sudo: ALL=(ALL) NOPASSWD:ALL"
-    echo "    shell: /bin/bash"
+    [ -n "${CI_USER_SUDO-ALL=(ALL) NOPASSWD:ALL}" ] && echo "    sudo: ${CI_USER_SUDO-ALL=(ALL) NOPASSWD:ALL}"
+    echo "    shell: ${CI_USER_SHELL:-/bin/bash}"
     echo "    lock_passwd: true"
     echo "    ssh_authorized_keys:"
     echo "      - $key"
@@ -26,7 +28,8 @@ ci_write_user_data() {
         [ -n "$line" ] && printf '  - %s\n' "$line"
       done < "$extra"
     fi
-    echo "  - touch /var/lib/devvm-ready"
+    [ "${CI_READY_ALWAYS:-1}" = 1 ] && echo "  - touch ${CI_READY_FILE:-/var/lib/devvm-ready}"
+    true
   } > "$dir/user-data"
 }
 

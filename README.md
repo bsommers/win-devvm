@@ -9,6 +9,8 @@ Unattended Windows 11 dev VM, two backends selected automatically by host OS:
 
 Linux x86_64 cloud-image guests (libvirt backend only: `GUEST=ubuntu` 24.04, `GUEST=fedora` 45) boot the vendor image with a cloud-init `cidata` seed (keys-only SSH user `$ADMIN_USER`, git + build tools). Images are cached and sha256-verified in `~/.cache/win-devvm/images`. No ISO, virtio-win, TPM or RDP needed:
 
+BSD guests (libvirt only): `GUEST=freebsd` boots the official FreeBSD `BASIC-CLOUDINIT` VM image (nuageinit reads the same `cidata` seed; key-only SSH user, then `pkg install` git, rust, qemu, ncurses; ready marker `/var/db/devvm-ready`). `GUEST=openbsd` is not implemented: OpenBSD ships no cloud image (see `docs/bsd-guests.md`).
+
 ```
 VM_NAME=u1 GUEST=ubuntu ./provision.sh && VM_NAME=u1 GUEST=ubuntu ./vm.sh wait
 ```

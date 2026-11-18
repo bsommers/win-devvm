@@ -39,6 +39,13 @@ image_fetch "$URL" a.img "sha256:$Z" >/dev/null 2>&1
 check "mismatch returns nonzero" test $? -ne 0
 check "mismatch deletes file" test ! -e "$IMAGE_CACHE/a.img"
 
+if command -v xz >/dev/null 2>&1; then
+  printf 'xz payload\n' > "$T/src/d.img"; xz -k "$T/src/d.img"; HX="$(_img_sha256 "$T/src/d.img.xz")"
+  p="$(image_fetch "file://$T/src/d.img.xz" d.img.xz "sha256:$HX" 2>/dev/null)"
+  check "xz fetch returns decompressed path" test "$p" = "$IMAGE_CACHE/d.img"
+  check "xz fetch decompressed content" test "$(cat "$IMAGE_CACHE/d.img")" = "xz payload"
+else echo "skip - xz missing"; fi
+
 if command -v qemu-img >/dev/null 2>&1; then
   qemu-img create -q -f qcow2 "$T/base.qcow2" 1G
   image_overlay "$T/base.qcow2" "$T/o.qcow2" 2 2>/dev/null

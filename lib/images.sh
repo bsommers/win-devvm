@@ -50,6 +50,7 @@ _img_expected() {
 }
 
 # image_fetch <url> <file-name> <sums-url|sha256:hex> -> prints cached path
+# A *.xz name is verified, then decompressed alongside; the decompressed path is printed.
 image_fetch() {
   [ $# -eq 3 ] || { _img_log "usage: image_fetch url name sums"; return 2; }
   local url="$1" name="$2" spec="$3" dest want got
@@ -69,6 +70,16 @@ image_fetch() {
     return 1
   fi
   _img_log "verified $name"
+  case "$name" in
+    *.xz)   # checksum covers the .xz; decompress once next to it (xz -k keeps the verified original)
+      command -v xz >/dev/null 2>&1 || { _img_log "xz not found"; return 1; }
+      if [ ! -f "${dest%.xz}" ]; then
+        _img_log "decompressing $name"
+        xz -dkc "$dest" > "${dest%.xz}.part" && mv "${dest%.xz}.part" "${dest%.xz}" \
+          || { rm -f "${dest%.xz}.part"; _img_log "decompress failed"; return 1; }
+      fi
+      dest="${dest%.xz}" ;;
+  esac
   printf '%s\n' "$dest"
 }
 
