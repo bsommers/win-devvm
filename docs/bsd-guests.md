@@ -16,14 +16,28 @@
   exists (log `/var/log/devvm-setup.log`). sshd comes up only after the first-boot update (a few minutes).
 - `./vm.sh wait` blocks until the tools are installed (`tools: DONE`) or failed.
 
-## OpenBSD (`GUEST=openbsd`) - NOT implemented (spike notes)
-No official cloud image. Options evaluated:
-1. Official `install<ver>.iso`/`miniroot`/`pxeboot`+`bsd.rd` (+ `SHA256`, signify `SHA256.sig`) with `autoinstall(8)`:
-   response file `install.conf` fetched over HTTP **port 80** from the DHCP next-server; if the fetch fails the installer
-   asks for a URL. Under rootless slirp port 80 on 10.0.2.2 maps to host loopback:80, which an unprivileged user cannot
-   bind (`ip_unprivileged_port_start=1024`), so a console-driven step (serial/VNC keystrokes) would be required. Sets can
-   come from `cdn.openbsd.org` via NAT. `site<ver>.tgz` + `install.site` can add the SSH key and `pkg_add git rust qemu`.
-   A local `/auto_install.conf` inside `bsd.rd`'s ramdisk avoids HTTP but needs OpenBSD tooling (`rdsetroot`, FFS write).
-2. Community pre-built cloud images (not official, no signature): rejected as untrusted.
-Recommended next step: a one-off `guests/openbsd/build-image.sh` that drives the official installer on a serial console
-via qemu, bakes the host SSH key + `pkg_add` set, and publishes a local qcow2 consumed as a `cloudimg` without seed.
+## OpenBSD (`GUEST=openbsd`) - implemented via a locally built image
+OpenBSD has no official cloud image, so the image is built once and cached; then it provisions like any cloud-image guest:
+`guests/openbsd/build-image.sh && VM_NAME=openbsd1 GUEST=openbsd ./provision.sh && VM_NAME=openbsd1 GUEST=openbsd ./vm.sh ssh`.
+
+- Build (`guests/openbsd/build-image.sh`, helper `build-image.py`, needs qemu+KVM, curl, python3 with `cryptography`; env
+  `OPENBSD_REL` (default 8.0), `OPENBSD_MIRROR`, `OPENBSD_PKGS`, `SSH_KEY`, `BUILD_USER`, `OPENBSD_OUT`, `OPENBSD_WORK`
+  (default `/datanapps/vms/openbsd-build`, never /tmp)):
+  1. downloads `SHA256`, `SHA256.sig` and `miniroot<rel>.img` from the release dir; verifies `SHA256.sig` with a pure-python
+     signify (ed25519) check against the pinned `guests/openbsd/openbsd-<rel>-base.pub`, then verifies miniroot's SHA256 from
+     that signed list. The pinned key was fetched over HTTPS from the mirror; for a new release cross-check it against
+     `/etc/signify/` of the previous release.
+  2. boots the miniroot under qemu/KVM with the serial console on a unix socket and answers the installer prompts
+     (expect-style, no pexpect): DHCP via slirp, sets over HTTPS from the mirror (installer verifies their signatures),
+     `-game* -xserv* -xfont*` (xbase stays: the qemu pkg needs X11 libs), MBR whole-disk, user `bill` with the host public key (`$SSH_KEY.pub`), root ssh login off, random
+     throwaway root/user passwords that are locked at the end.
+  3. reboots the installed disk, prepends `PasswordAuthentication no` / `KbdInteractiveAuthentication no` to sshd_config
+     (sshd takes the first value), adds `permit nopass keepenv :wheel` to doas.conf, `pkg_add git rust qemu` (and
+     `ncurses` if a package of that name exists; base already has libcurses), checks `ssh bill@... uname -a` from the host,
+     halts, and writes `~/.cache/win-devvm/images/openbsd-<rel>-amd64.qcow2` + `.sha256`.
+- Provision: `guest.env` points `IMAGE_URL`/`IMAGE_SUMS` at those `file://` paths; `provision.sh` makes a qcow2 overlay
+  (cloudimg path) and ignores the cidata seed (no cloud-init). `guest_stage` fails early with a hint if the image is missing.
+  The SSH key is baked at build time; rebuild to change it. `MACHINE=q35`, `UEFI_BOOT=hd` (BIOS boot). Ready as soon as
+  ssh answers. Stop: `doas halt -p`. Run `syspatch` after the first login for errata.
+- Rejected alternatives: autoinstall(8) (needs `install.conf` over HTTP port 80, not bindable rootless; or an FFS-patched
+  `bsd.rd`), and community pre-built cloud images (unsigned, untrusted).
